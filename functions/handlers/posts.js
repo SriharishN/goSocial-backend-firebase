@@ -12,7 +12,9 @@ exports.getAllPosts = (req,res)=>{
                user:doc.data().userHandle,
                body:doc.data().body,
                createdAt:doc.data().createdAt,
-               userImage:doc.data().userImage
+               userImage:doc.data().userImage,
+               likeCount: doc.data().likeCount,
+               commentCount: doc.data().commentCount
            });
         });
         return res.json(getPosts);
