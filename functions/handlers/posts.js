@@ -3,7 +3,7 @@ const { json } = require('express');
 
 
 exports.getAllPosts = (req,res)=>{
-    db.collection('blogs').get()
+    db.collection('blogs').orderBy('createdAt','desc').get()
     .then((data)=>{
         let getPosts = [];
         data.forEach((doc)=>{
@@ -85,6 +85,7 @@ exports.blogComments = (req,res)=>{
 
 exports.likeCount = (req,res) =>{
     const likeCounts = db.collection('like').where('postId','==',req.params.postId).where('userHandle','==',req.user.handle).limit(1);
+    console.log(req.user);
     const postData = db.doc(`/blogs/${req.params.postId}`);
     let postDetails;
     db.doc(`/blogs/${req.params.postId}`).get().then(doc =>{
@@ -113,6 +114,27 @@ exports.likeCount = (req,res) =>{
     });
 }
 
+exports.blogDelete = (req,res)=>{
+    const document = db.doc(`/blogs/${req.params.postId}`);
+    document.get().then((data)=>{
+        console.log(req.user)
+        if(!data.exists){
+            console.log(req);
+            return res.status(404).json({'error':'Post not found'});
+        }else if(data.data().userHandle !=  req.user.handle){
+            console.log(req.user)
+            return res.status(404).json({'general': 'Unauthorized'});
+        }else{
+            return document.delete();
+        }
+    }).then(()=>{
+        return res.json({'message': 'Deleted successfully'});
+    }).catch(err=>{
+        return res.status(500).json({'error': 'Something went wrong'});
+    });
+}
+
+
 exports.unlikeCount = (req,res) =>{
     const likeCounts = db.collection('like').where('postId','==',req.params.postId).where('userHandle','==',req.user.handle).limit(1);
     const postData = db.doc(`/blogs/${req.params.postId}`);
@@ -140,4 +162,5 @@ exports.unlikeCount = (req,res) =>{
         return res.status(500).json({'error':err.code});
     });
 }
+
 

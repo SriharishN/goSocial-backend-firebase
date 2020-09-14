@@ -5,7 +5,7 @@ const express = require('express');
 // // https://firebase.google.com/docs/functions/write-firebase-functions
 //
 
-const { getAllPosts, createPosts, getPost,blogComments, likeCount, unlikeCount } = require('./handlers/posts');
+const { getAllPosts, createPosts, getPost,blogComments, likeCount, unlikeCount, blogDelete } = require('./handlers/posts');
 const { signUp,  login, uploadImage, addUserData, getUserDetails, getUserDetail, readNotifications } = require('./handlers/users');
 const FBAuths = require('./utilities/auth');
 
@@ -33,14 +33,14 @@ app.post('/helloWorld',(request, response) => {
  app.get('/getViews/:postId/like',FBAuths,likeCount);
  app.get('/getViews/:postId/unlike',FBAuths,unlikeCount);
  app.post('/notifications',FBAuths, readNotifications);
+ app.delete('/getViews/:postId',FBAuths, blogDelete);
 
  exports.api = functions.region('us-central1').https.onRequest(app);
  
  exports.createNotificationOnLike = functions.region('us-central1').firestore.document('like/{id}').onCreate((snapshot)=>{
-  db.doc(`/blogs/${snapshot.data().postId}`).get()
+  return db.doc(`/blogs/${snapshot.data().postId}`).get()
    .then((doc)=>{
-     console.log(doc)
-     if(doc.exists){
+     if(doc.exists && doc.data().userHandle !== snapshot.data().userHandle){
        return db.doc(`/notification/${snapshot.id}`).set({
          createdAt: new Date().toISOString(),
          recipient: doc.data().userHandle,
@@ -50,9 +50,6 @@ app.post('/helloWorld',(request, response) => {
          blogId: doc.id
        });
      }
-   }).then((val) => {
-         console.log(val);
-         return;
    }).catch(err=>{
        console.error(err);
        return;
@@ -61,7 +58,7 @@ app.post('/helloWorld',(request, response) => {
  exports.createNotificationOnComment = functions.region('us-central1').firestore.document('comments/{id}').onCreate((snapshot)=>{
    return db.doc(`/blogs/${snapshot.data().postId}`).get()
    .then((doc)=>{
-     if(doc.exists){
+     if(doc.exists && doc.data().userHandle !== snapshot.data().userHandle){
        return db.doc(`/notification/${snapshot.id}`).set({
          createdAt: new Date().toISOString(),
          recipient: doc.data().userHandle,
@@ -71,8 +68,6 @@ app.post('/helloWorld',(request, response) => {
          blogId: doc.id
        });
      }
-   }).then(() => {
-         return;
    }).catch(err=>{
        console.error(err);
        return;
@@ -81,13 +76,55 @@ app.post('/helloWorld',(request, response) => {
  exports.deleteNotificationOnLike = functions.region('us-central1').firestore.document('like/{id}').onDelete((snapshot)=>{
   return db.doc(`/blogs/${snapshot.data().postId}`).get()
   .then((doc)=>{
-    if(doc.exists){
+
       return db.doc(`/notification/${snapshot.id}`).delete()
-    }
-  }).then(() => {
-        return;
+
   }).catch(err=>{
       console.error(err);
       return;
   });
+});
+exports.deleteOnPosts = functions.region('us-central1').firestore.document('blogs/{postId}').onDelete((snapshot,context)=>{
+  const batch = db.batch();
+  const postId = context.params.postId;
+  return db.collection('like').where('postId','==',postId).get()
+  .then(doc=>{
+    doc.forEach(data=>{
+      batch.delete(db.doc(`like/${data.id}`));
+    });
+    return db.collection('comments').where('postId','==', postId).get();
+  })
+    .then(doc=>{
+      doc.forEach(data=>{
+        batch.delete(db.doc(`comments/${data.id}`));
+      })
+      return db.collection('notification').where('blogId','==',postId).get()
+    })
+      .then(doc=>{
+        doc.forEach(data=>{
+          batch.delete(db.doc(`notification/${data.id}`));
+        })
+        batch.commit();
+      }).catch(err=>{
+        console.log(err);
+      })
+   
+});
+
+exports.onUpdateImage = functions.region('us-central1').firestore.document('users/{userId}').onUpdate((snapshot)=>{
+    const before = snapshot.before.data();
+    const after = snapshot.after.data();
+    if(before != after){
+      const batch = db.batch();
+      return db.collection('blogs').where('userHandle','==',before.handle).get()
+      .then((data)=>{
+        data.forEach(doc=>{
+          const post = db.doc(`/blogs/${doc.id}`);
+          batch.update(post, {userImage : after.imageUrl});
+        });
+        batch.commit();
+      });
+    }else {
+      return true;
+    }
 });

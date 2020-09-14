@@ -137,7 +137,7 @@ exports.getUserDetails = (req, res) =>{
 
 exports.getUserDetail = (req,res) => {
     let userData = {};
-    db.doc(`user/${req.params.handle}`).get()
+    db.doc(`users/${req.params.handle}`).get()
     .then(doc =>{
         if(doc.exists){
             userData.user = doc.data();
@@ -168,7 +168,7 @@ exports.readNotifications = (req,res) =>{
     let batch = db.batch();
     req.body.forEach(notificationId=>{
         const notification = db.doc(`/notification/${notificationId}`);
-        batch.update(notification, {type: true});
+        batch.update(notification, {read: true});
     });
     batch.commit()
     .then(data=>{
