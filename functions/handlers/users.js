@@ -36,6 +36,7 @@ db.doc(`/users/${credentials.handle}`).get().then(doc=>{
             email:credentials.email,
             password:credentials.pass,
             handle: credentials.handle,
+            createdAt: new Date().toISOString(),
             imageUrl:`https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${pic}?alt=media`,
             userId
         };
@@ -108,7 +109,7 @@ exports.getUserDetails = (req, res) =>{
     db.doc(`/users/${req.user.handle}`).get().then((data)=>{
            if(data.exists){
                resData.credentials = data.data();
-               return db.collection('likes').where('userHandle','==',req.user.handle).get()
+               return db.collection('like').where('userHandle','==',req.user.handle).get()
            }
     }).then(data=>{
         resData.likes = [];

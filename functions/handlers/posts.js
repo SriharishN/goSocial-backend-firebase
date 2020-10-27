@@ -8,8 +8,8 @@ exports.getAllPosts = (req,res)=>{
         let getPosts = [];
         data.forEach((doc)=>{
            getPosts.push({
-               blogId: doc.id,
-               user:doc.data().userHandle,
+               postId: doc.id,
+               userHandle:doc.data().userHandle,
                body:doc.data().body,
                createdAt:doc.data().createdAt,
                userImage:doc.data().userImage,
@@ -148,6 +148,7 @@ exports.unlikeCount = (req,res) =>{
             return res.json({'error':'Post not found'});
         }
     } ).then(data =>{
+        console.log(data.docs);
         if(!data.empty){
             return db.doc(`/like/${data.docs[0].id}`).delete()
     .then(()=>{
