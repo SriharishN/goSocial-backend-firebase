@@ -5,7 +5,7 @@ const express = require('express');
 // // https://firebase.google.com/docs/functions/write-firebase-functions
 //
 
-const { getAllPosts, createPosts, getPost,blogComments, likeCount, unlikeCount, blogDelete } = require('./handlers/posts');
+const { getAllPosts, createPosts, getPost,blogComments, likeCount, unlikeCount, blogDelete, commentDelete } = require('./handlers/posts');
 const { signUp,  login, uploadImage, addUserData, getUserDetails, getUserDetail, readNotifications } = require('./handlers/users');
 const FBAuths = require('./utilities/auth');
 
@@ -27,13 +27,14 @@ app.post('/helloWorld',(request, response) => {
  app.post('/user/image',FBAuths,uploadImage);
  app.post('/user',FBAuths,addUserData);
  app.get('/user',FBAuths,getUserDetails);
- app.get('/user/:handle',FBAuths,getUserDetail);
+ app.get('/user/:handle',getUserDetail);
  app.get('/getViews/:postId',getPost);
  app.post('/getViews/:postId/comment',FBAuths,blogComments);
  app.get('/getViews/:postId/like',FBAuths,likeCount);
  app.get('/getViews/:postId/unlike',FBAuths,unlikeCount);
  app.post('/notifications',FBAuths, readNotifications);
  app.delete('/getViews/:postId',FBAuths, blogDelete);
+ app.delete('/getViews/:postId/comment/:commentId',FBAuths, commentDelete);
 
  exports.api = functions.region('us-central1').https.onRequest(app);
  
@@ -47,7 +48,7 @@ app.post('/helloWorld',(request, response) => {
          sender: snapshot.data().userHandle,
          type: 'like',
          read: false,
-         blogId: doc.id
+         postId: doc.id
        });
      }
    }).catch(err=>{
@@ -65,7 +66,7 @@ app.post('/helloWorld',(request, response) => {
          sender: snapshot.data().userHandle,
          type: 'comment',
          read: false,
-         blogId: doc.id
+         postId: doc.id
        });
      }
    }).catch(err=>{

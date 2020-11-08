@@ -44,7 +44,11 @@ db.doc(`/users/${credentials.handle}`).get().then(doc=>{
     }).then((data)=>{
         return res.json({message:`user created with ${userId}`, tokens });
     }).catch((err)=>{
-        res.status(403).json({'general':"Error in Signing Up, Try after sometime"})
+        if (err.code === "auth/email-already-in-use") {
+            return res.status(400).json({ 'general': "Email is already in use" });
+          }else {
+           res.status(500).json({'general':"Error in Signing Up, Try after sometime"})
+          }
     });
     
     }
@@ -125,7 +129,7 @@ exports.getUserDetails = (req, res) =>{
                     sender:doc.data().sender,
                     read:doc.data().read,
                     type:doc.data().type,
-                    postId:doc.data().blogId,
+                    postId:doc.data().postId,
                     createdAt:doc.data().createdAt,
                     notificationId: doc.id
                 })
@@ -156,7 +160,7 @@ exports.getUserDetail = (req,res) => {
                 userImage: doc.data().userImage,
                 likeCount: doc.data().likeCount,
                 commentCount: doc.data().commentCount,
-                blogId: doc.id,
+                postId: doc.id,
             });
         });
         return res.json(userData);

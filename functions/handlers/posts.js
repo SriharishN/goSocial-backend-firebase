@@ -22,6 +22,9 @@ exports.getAllPosts = (req,res)=>{
 }
 
 exports.createPosts = (req,res)=>{
+    if (req.body.body.trim() === '' || req.body.body.trim() === undefined) {
+        return res.status(400).json({ body: 'Body must not be empty' });
+      }
     const pos = {
         body:req.body.body,
         userHandle:req.user.handle,
@@ -35,7 +38,9 @@ exports.createPosts = (req,res)=>{
         const rPost = pos;
         rPost.postId = doc.id;
         res.json(rPost);
-    }).catch(err=>console.error(err));
+    }).catch(err=>{
+        return res.status(500).json({'error': err.code});
+    });
 }
 exports.getPost = (req,res)=>{
     let postData = {};
@@ -50,15 +55,22 @@ exports.getPost = (req,res)=>{
     }).then((data)=>{
             postData.comments = [];
             data.forEach((doc)=>{
-                postData.comments.push(doc.data());
+                const commentData = doc.data();
+                commentData.commentId = doc.id;
+                postData.comments.push(commentData);
             });
             return res.json(postData);
-        }).catch(err=>console.error(err));
+        }).catch(err=>
+            {
+                return res.status(500).json({'error': err.code});
+            });
 
 }
 
 exports.blogComments = (req,res)=>{
-    if(req.body.body.trim() === ' ') return res.json({'error':'Body cannot be empty'});
+    if (req.body.body.trim() === '' || req.body.body.trim() === undefined) {
+        return res.status(400).json({ body: 'Body must not be empty' });
+      }
     const newComment = {
        body: req.body.body,
        postId: req.params.postId,
@@ -73,14 +85,56 @@ exports.blogComments = (req,res)=>{
             return res.json({'error':'Post is not found'});
         }
         postDetails = doc.data();
-        return db.collection('comments').add(newComment)
+        return db.collection('comments').add(newComment).then((doc)=>{
+            newComment.commentId = doc.id;
+        })
     }).then(()=>{
+        
         postDetails.commentCount++;
         postData.update({'commentCount': postDetails.commentCount});
         return res.json(newComment);
     }).catch(err=>{
         return res.status(500).json({'error': err.code});
     });
+}
+
+exports.commentDelete = (req,res) => {
+   const document = db.doc(`/comments/${req.params.commentId}`)
+   const postData = db.doc(`/blogs/${req.params.postId}`);
+   console.log(req.params.commentId);
+   let postDetails; 
+   db.doc(`/blogs/${req.params.postId}`).get().then((doc)=>{
+    if(!doc.exists){
+        console.log(doc)
+        return res.json({'error':'Post is not found'});
+    }
+    console.log("inside post data")
+    postDetails = doc.data();
+}).catch(err=>{
+    console.log("inside post error")
+    res.json({'error':'Something went wrong'})
+})
+
+db.doc(`/comments/${req.params.commentId}`).get().then((doc)=>{
+       if(!doc.exists){
+           console.log("inside first if")
+            res.status(404).json({'error': 'Comment not found'})
+       }else if(doc.data().userHandle !== req.user.handle){
+        console.log("inside second if")
+           res.status(404).json({'error':'Unauthorized'});
+       }else{
+           console.log(document);
+            return document.delete();
+       }
+   }).then(()=>{
+         console.log("inside count")
+         postDetails.commentCount--;
+         postData.update({'commentCount': postDetails.commentCount})
+         return res.json({'message':'Comment deleted successfully'})
+   }).catch(err=>{
+       console.log("inside error")
+       return res.status(404).json({'error':'Something went wrong'});
+   })
 }
 
 exports.likeCount = (req,res) =>{
